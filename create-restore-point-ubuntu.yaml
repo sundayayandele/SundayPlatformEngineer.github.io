@@ -1,6 +1,6 @@
 
 Creating a restore point for your current Ubuntu 22.04 state is an excellent way to safeguard your system before making major changes. Here are a few methods to achieve this:
-
+[https://chatgpt.com/share/227f177a-1a94-4362-ab04-f9f32887b62d]
 1. Create a System Snapshot with Timeshift
 Timeshift is a popular tool for creating and managing system snapshots. It’s very useful for creating restore points.
 
