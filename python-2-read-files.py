@@ -1,4 +1,58 @@
 import os
+import argparse
+from fpdf import FPDF
+from PIL import Image
+
+def add_text_file_to_pdf(pdf, file_path):
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+        content = file.read()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, content)
+
+def add_image_to_pdf(pdf, image_path):
+    pdf.add_page()
+    pdf.image(image_path, x=10, y=10, w=pdf.w - 20)
+
+def is_text_file(extension):
+    return extension in ['.xml', '.html', '.css', '.js', '.javascript', '.info']
+
+def is_image_file(extension):
+    return extension in ['.png']
+
+def create_pdf_from_folder(folder_path, output_pdf):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    for root, dirs, files in os.walk(folder_path):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            file_extension = os.path.splitext(file_name)[1].lower()
+
+            if is_text_file(file_extension):
+                add_text_file_to_pdf(pdf, file_path)
+                print(f"Added text file {file_path} to PDF.")
+            elif is_image_file(file_extension):
+                add_image_to_pdf(pdf, file_path)
+                print(f"Added image {file_path} to PDF.")
+            else:
+                print(f"Skipped unsupported file type: {file_name}")
+
+    pdf.output(output_pdf)
+    print(f"PDF created successfully: {output_pdf}")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Create a PDF from folder contents.")
+    parser.add_argument('--folder-path', required=True, help="Path to the folder containing files.")
+    parser.add_argument('--output', required=True, help="Output PDF file name.")
+
+    args = parser.parse_args()
+    create_pdf_from_folder(args.folder_path, args.output)
+
+
+
+===========================================
+import os
 from fpdf import FPDF
 from PIL import Image
 
