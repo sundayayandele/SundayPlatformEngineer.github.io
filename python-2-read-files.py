@@ -1,3 +1,97 @@
+using oyppeteer
+
+
+import os
+import argparse
+import asyncio
+from pyppeteer import launch
+
+async def html_to_pdf(html_file, output_pdf):
+    """
+    Convert an HTML file to PDF using Pyppeteer.
+    """
+    # Launch a headless Chromium browser
+    browser = await launch(headless=True, args=['--no-sandbox'])
+    page = await browser.newPage()
+
+    # Convert HTML file to absolute path for proper loading
+    html_file_path = 'file://' + os.path.abspath(html_file)
+
+    # Load the HTML file
+    await page.goto(html_file_path, {'waitUntil': 'networkidle0'})
+
+    # Generate PDF
+    await page.pdf({
+        'path': output_pdf,
+        'format': 'A4',
+        'printBackground': True  # To include backgrounds (like CSS)
+    })
+
+    await browser.close()
+    print(f"PDF successfully generated at: {output_pdf}")
+
+def parse_arguments():
+    """
+    Parse command-line arguments to get HTML file and output PDF file name.
+    """
+    parser = argparse.ArgumentParser(description="Convert an HTML file to a PDF using Pyppeteer.")
+    parser.add_argument('--html-file', type=str, required=True, help='Path to the HTML file.')
+    parser.add_argument('--output-pdf', type=str, required=True, help='Path to save the output PDF file.')
+
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    # Use asyncio to run the Pyppeteer event loop
+    asyncio.get_event_loop().run_until_complete(html_to_pdf(args.html_file, args.output_pdf))
+
+===================
+DevOPs
+============
+
+
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+# 1. Download the artifact that contains the HTML file and its associated files (CSS, images, etc.)
+- task: DownloadPipelineArtifact@2
+  inputs:
+    buildType: 'current'
+    artifactName: 'your-artifact-name'  # Replace with the name of your artifact
+    targetPath: '$(Build.SourcesDirectory)/html_artifact'
+
+# 2. Install Python and Pyppeteer
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'  # Use Python 3.x
+
+- script: |
+    python -m pip install --upgrade pip
+    pip install pyppeteer
+  displayName: 'Install Pyppeteer'
+
+# 3. Run the Python script to convert the HTML to PDF using Pyppeteer
+- script: |
+    python convert_html_to_pdf.py --html-file $(Build.SourcesDirectory)/html_artifact/index.html --output-pdf $(Build.ArtifactStagingDirectory)/output.pdf
+  displayName: 'Convert HTML to PDF with Pyppeteer'
+
+# 4. Publish the generated PDF as an artifact
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)/output.pdf'
+    artifact: 'converted-pdf'
+    publishLocation: 'pipeline'
+  displayName: 'Publish PDF Artifact'
+
+
+
+
+======================
 using weasy
 =================================================
 
