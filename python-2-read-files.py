@@ -1,6 +1,75 @@
 using wissy
 ================
 import os
+from PIL import Image
+from fpdf import FPDF
+
+class PrettyPDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, 'Test Output Collation', ln=True, align='C')
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, 'Page %s' % self.page_no(), 0, 0, 'C')
+
+def process_image(pdf, file_path):
+    """
+    Process image files from a file path and verify they are valid.
+    Adds the image to the PDF.
+    """
+    try:
+        # Open the image directly from file
+        img = Image.open(file_path)
+        img.verify()  # Verify the image is valid
+
+        # Add a new page and embed the image into the PDF
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 16)
+        file_name = os.path.basename(file_path)
+        pdf.cell(0, 10, f'Image: {file_name}', ln=True)
+        pdf.image(file_path, x=10, y=30, w=pdf.w - 20)
+        print(f"Successfully loaded and verified image: {file_path}")
+    except PIL.UnidentifiedImageError:
+        print(f"Cannot identify image file: {file_path}")
+    except Exception as e:
+        print(f"Error loading image {file_path}: {str(e)}")
+
+def process_image_in_nested_folder(pdf, root_folder):
+    """
+    Traverse nested folders and process image files within them.
+    """
+    for root, dirs, files in os.walk(root_folder):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            # Only process image files
+            if file_name.lower().endswith(('.png', '.jpg', '.jpeg')):
+                process_image(pdf, file_path)
+
+def create_pdf_from_folder(folder_path, output_pdf):
+    """
+    Traverse the folder, process files, and create a single PDF.
+    """
+    pdf = PrettyPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Traverse the folder and all subfolders
+    process_image_in_nested_folder(pdf, folder_path)
+
+    # Save the resulting PDF
+    pdf.output(output_pdf)
+    print(f"PDF created successfully: {output_pdf}")
+
+if __name__ == "__main__":
+    folder_path = "path_to_your_nested_folder"
+    output_pdf = "output_pdf_file.pdf"
+    create_pdf_from_folder(folder_path, output_pdf)
+
+
+
+=============================================
+import os
 import io
 import argparse
 from PIL import Image
