@@ -1,5 +1,95 @@
 using weasy
 =================================================
+
+import os
+import argparse
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import HtmlFormatter
+from weasyprint import HTML
+
+def generate_html_content(file_path, file_extension):
+    """
+    Convert the content of a supported file to HTML with syntax highlighting if applicable.
+    """
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+        content = file.read()
+
+    # Handle unsupported file types like .info (treat as plain text)
+    if file_extension == '.info':
+        return f"<pre>{content}</pre>"
+
+    # Add syntax highlighting for supported code files using Pygments
+    try:
+        lexer = get_lexer_by_name(file_extension.strip('.'))
+        formatter = HtmlFormatter(style='colorful', full=True, noclasses=True)
+        return highlight(content, lexer, formatter)
+    except Exception as e:
+        # If no lexer is found, treat the file as plain text
+        print(f"No lexer found for {file_extension}, treating as plain text.")
+        return f"<pre>{content}</pre>"
+
+def process_files_in_folder(root_folder):
+    """
+    Traverse nested folders, process text files within them, and generate HTML content.
+    Skip image files like .png, .jpg, .jpeg.
+    """
+    html_content = "<html><body>"
+    for root, dirs, files in os.walk(root_folder):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            file_extension = os.path.splitext(file_name)[1].lower()
+
+            # Skip image files like .png, .jpg, .jpeg
+            if file_extension in ['.png', '.jpg', '.jpeg']:
+                print(f"Skipping image file: {file_name}")
+                continue
+
+            # Process only text-based files
+            if is_text_file(file_extension):
+                html_content += f"<h2>{file_name}</h2>"
+                html_content += generate_html_content(file_path, file_extension)
+    
+    html_content += "</body></html>"
+    return html_content
+
+def is_text_file(extension):
+    """
+    Checks if the file is a text-based file.
+    """
+    return extension in ['.xml', '.html', '.css', '.js', '.javascript', '.info']
+
+def create_pdf_from_folder(folder_path, output_pdf):
+    """
+    Traverse the folder, convert files to HTML, and create a single PDF using WeasyPrint.
+    """
+    html_content = process_files_in_folder(folder_path)
+
+    # Convert the HTML content to PDF using WeasyPrint
+    HTML(string=html_content).write_pdf(output_pdf)
+    print(f"PDF created successfully: {output_pdf}")
+
+def parse_arguments():
+    """
+    Parse command-line arguments to get the folder path and output PDF file name.
+    """
+    parser = argparse.ArgumentParser(description="Convert files in a folder to a single PDF using WeasyPrint.")
+    parser.add_argument('--folder-path', type=str, required=True, help='Path to the folder containing the files.')
+    parser.add_argument('--output-pdf', type=str, required=True, help='Name of the output PDF file.')
+
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    # Pass the folder path and output PDF to the function
+    create_pdf_from_folder(args.folder_path, args.output_pdf)
+
+
+
+
+    
+------------------------------------------
 import os
 import argparse
 from pygments import highlight
