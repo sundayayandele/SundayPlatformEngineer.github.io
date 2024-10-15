@@ -1,7 +1,137 @@
 using wissy
+================
+import os
+import io
+import argparse
+from PIL import Image
+from fpdf import FPDF
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import HtmlFormatter
+from weasyprint import HTML
+
+class PrettyPDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, 'Test Output Collation', ln=True, align='C')
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, 'Page %s' % self.page_no(), 0, 0, 'C')
+
+def add_text_file_to_pdf(pdf, file_path, file_extension):
+    """
+    Reads a text-based file and adds its content to the PDF.
+    Supports .xml, .html, .css, .js, .javascript, .info files.
+    """
+    pdf.add_page()
+    
+    # Add file title as header
+    file_name = os.path.basename(file_path)
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, f'File: {file_name}', ln=True)
+
+    # Read the file content
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+        content = file.read()
+
+    # Handle HTML files with WeasyPrint
+    if file_extension == '.html':
+        # Convert HTML content to PDF using WeasyPrint
+        output_pdf_file = f"{file_name}.pdf"
+        HTML(string=content).write_pdf(output_pdf_file)
+        
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(0, 10, f'Embedded HTML File: {file_name}', ln=True)
+        pdf.ln(10)
+        pdf.image(output_pdf_file, x=10, y=20, w=pdf.w - 20)  # Embed as image (or merge PDFs)
+        return
+
+    # Syntax highlighting for code files
+    if file_extension in ['.js', '.css', '.xml', '.javascript']:
+        lexer = get_lexer_by_name(file_extension.lstrip('.'), stripall=True)
+        formatter = HtmlFormatter(style='colorful', full=True)
+        highlighted_code = highlight(content, lexer, formatter)
+
+        # Add formatted code
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 10, highlighted_code)
+    else:
+        # Add normal text files
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 10, content)
+
+def process_image(pdf, file_path):
+    """
+    Process image files from a file path and verify they are valid.
+    Adds the image to the PDF.
+    """
+    try:
+        with open(file_path, 'rb') as image_file:
+            img = Image.open(image_file)
+            img.verify()  # Verify the image is valid
+            
+            # Add a new page and embed the image into the PDF
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 16)
+            file_name = os.path.basename(file_path)
+            pdf.cell(0, 10, f'Image: {file_name}', ln=True)
+            pdf.image(file_path, x=10, y=30, w=pdf.w - 20)
+            print(f"Successfully loaded and verified image: {file_path}")
+    except PIL.UnidentifiedImageError:
+        print(f"Cannot identify image file: {file_path}")
+    except Exception as e:
+        print(f"Error loading image {file_path}: {str(e)}")
+
+def process_image_in_nested_folder(pdf, root_folder):
+    """
+    Traverse nested folders and process image files within them.
+    """
+    for root, dirs, files in os.walk(root_folder):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            # Only process image files
+            if file_name.lower().endswith(('.png', '.jpg', '.jpeg')):
+                process_image(pdf, file_path)
+            elif is_text_file(os.path.splitext(file_name)[1].lower()):
+                add_text_file_to_pdf(pdf, file_path, os.path.splitext(file_name)[1].lower())
+
+def is_text_file(extension):
+    """
+    Checks if the file is a text-based file.
+    """
+    return extension in ['.xml', '.html', '.css', '.js', '.javascript', '.info']
+
+def create_pdf_from_folder(folder_path, output_pdf):
+    """
+    Traverse the folder, process files, and create a single PDF.
+    """
+    pdf = PrettyPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Traverse the folder and all subfolders
+    process_image_in_nested_folder(pdf, folder_path)
+
+    # Save the resulting PDF
+    pdf.output(output_pdf)
+    print(f"PDF created successfully: {output_pdf}")
+
+if __name__ == "__main__":
+    # Argument parser to get folder path and output PDF file name
+    parser = argparse.ArgumentParser(description="Create a PDF from folder contents.")
+    parser.add_argument('--folder-path', required=True, help="Path to the folder containing files.")
+    parser.add_argument('--output', required=True, help="Output PDF file name.")
+
+    args = parser.parse_args()
+
+    # Call the function to create a PDF from the folder
+    create_pdf_from_folder(args.folder_path, args.output)
 
 
-    import os
+=================================================
+import os
 import argparse
 from fpdf import FPDF
 from weasyprint import HTML
