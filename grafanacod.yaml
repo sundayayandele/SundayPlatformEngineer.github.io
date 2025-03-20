@@ -1,0 +1,118 @@
+Yes! Based on your xyz.json configuration, your Grafana dashboard will support filtering by the job parameter dynamically in a Single View Dashboard. However, there are a few fixes and improvements needed to make sure this works correctly.
+
+
+---
+
+✅ How to Make $job Work as a Search Parameter
+
+To ensure the job variable works dynamically in Grafana, follow these steps:
+
+1️⃣ Fix the JSON Query for job
+
+Your current JSON:
+
+"variables": {
+  "Job": {
+    "type": "query",
+    "query": "api_response_time_seconds_count{job=~\"$job\"}",
+    "label": "job"
+  }
+}
+
+Issues:
+
+The query is using job=~"$job", but $job is not defined yet.
+
+The job filter is missing a PromQL function that fetches unique job names.
+
+
+✅ Fixed Query:
+
+"variables": {
+  "Job": {
+    "type": "query",
+    "query": "label_values(api_response_time_seconds_count, job)",
+    "label": "job"
+  }
+}
+
+label_values(api_response_time_seconds_count, job) → Fetches all unique job labels dynamically.
+
+Now, $job will auto-populate with available jobs in Grafana.
+
+
+
+---
+
+2️⃣ Use $job in Your Panels
+
+Now that $job is correctly defined, use it dynamically in your Prometheus queries inside Grafana panels:
+
+prometheus.query.new(
+  '$' + variable.datasource.name, 
+  '1 - (sum by (httpStatusCode, method) (rate(api_response_time_seconds_count{httpStatusCode=~"2..", job=~"$job"}[5m])) ' +
+  '/ sum by (httpStatusCode, method) (rate(api_response_time_seconds_count{job=~"$job"}[5m])))'
+)
+
+Uses job=~"$job" to filter based on the selected job.
+
+If (All) is selected, it automatically includes all jobs.
+
+
+
+---
+
+3️⃣ Ensure the Template Supports variables
+
+Inside your template.abc.libsonnet, make sure variables are passed into the dashboard:
+
+local grafana = import 'grafonnet/grafana.libsonnet';
+
+grafana.dashboard.new('API Monitoring Dashboard')
+.withVariable(
+  grafana.template.datasource.new('job')
+  .withQuery('label_values(api_response_time_seconds_count, job)')
+  .withAllValue('*')  // Enables wildcard (all jobs)
+)
+.withPanels([
+    grafana.panels.stat.new('API Error Rate')
+    .withPrometheusTarget('sum by (httpStatusCode, method) (rate(api_response_time_seconds_count{httpStatusCode=~"2..", job=~"$job"}[5m]))')
+    .setGridPos({x: 0, y: 0, w: 12, h: 8})
+])
+
+.withVariable(...) ensures $job exists.
+
+.withAllValue('*') enables the "All" selection.
+
+
+
+---
+
+🎯 How $job Works in Grafana
+
+1. The "job" dropdown appears in Grafana’s UI.
+
+
+2. Users select a job, and $job updates dynamically.
+
+
+3. The dashboard updates automatically to show data only for the selected job.
+
+
+
+💡 Bonus: If you want users to select multiple jobs, enable multi-selection in Grafana's variable settings.
+
+
+---
+
+🚀 Final Summary
+
+✅ Fixes $job query using label_values(...)
+✅ Ensures Prometheus queries use $job dynamically
+✅ Uses $job in the template and panels
+✅ Supports wildcard selection (All jobs)
+
+With this setup, $job will work dynamically as a search filter in the Single View Dashboard in Grafana! 🎯
+
+Let me know if you need any modifications! 🚀
+
